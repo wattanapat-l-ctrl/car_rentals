@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบจัดการเช่ารถ - Car Rental Admin</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h2 { color: #2c3e50; text-align: center; }
+        .form-group { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        input, select, button { padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
+        button { background-color: #27ae60; color: white; cursor: pointer; border: none; transition: 0.3s; }
+        button:hover { background-color: #219150; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #eee; padding: 12px; text-align: left; }
+        th { background-color: #f8f9fa; }
+        .status-tag { padding: 4px 8px; border-radius: 4px; font-size: 0.85em; background: #eee; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>🚗 ระบบจัดการตารางเช่ารถ</h2>
+    
+    <div class="form-group">
+        <input type="text" id="carModel" placeholder="รุ่นรถ (เช่น Toyota Camry)">
+        <input type="text" id="renterName" placeholder="ชื่อผู้เช่า">
+        <input type="date" id="rentalDate">
+        <button onclick="addRental()">บันทึกการจอง</button>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>รุ่นรถ</th>
+                <th>ผู้เช่า</th>
+                <th>วันที่</th>
+                <th>สถานะ</th>
+            </tr>
+        </thead>
+        <tbody id="rentalTableBody">
+            </tbody>
+    </table>
+</div>
+
+<script>
+    // 1. ตั้งค่าการเชื่อมต่อ (แทนที่ด้วยค่าของคุณจาก Supabase)
+    const SUPABASE_URL = 'https://jgwcyesxajinnpwbtkep.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_SQrXsMRE5mXvcWOFhTZzMw_uTQjMish';
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // 2. ฟังก์ชันดึงข้อมูลจาก Supabase มาแสดงในตาราง
+    async function fetchRentals() {
+        const { data, error } = await supabase
+            .from('car_rentals')
+            .select('*')
+            .order('rental_date', { ascending: true });
+
+        if (error) {
+            console.error('Error fetching:', error);
+            return;
+        }
+
+        const tableBody = document.getElementById('rentalTableBody');
+        tableBody.innerHTML = ''; // ล้างข้อมูลเก่าก่อน
+
+        data.forEach(item => {
+            const row = `
+                <tr>
+                    <td>**${item.car_model}**</td>
+                    <td>${item.renter_name}</td>
+                    <td>${item.rental_date}</td>
+                    <td><span class="status-tag">${item.status || 'Pending'}</span></td>
+                </tr>
+            `;
+            tableBody.innerHTML += row;
+        });
+    }
+
+    // 3. ฟังก์ชันบันทึกข้อมูลใหม่
+    async function addRental() {
+        const carModel = document.getElementById('carModel').value;
+        const renterName = document.getElementById('renterName').value;
+        const rentalDate = document.getElementById('rentalDate').value;
+
+        if (!carModel || !renterName || !rentalDate) {
+            alert('กรุณากรอกข้อมูลให้ครบถ้วน');
+            return;
+        }
+
+        const { error } = await supabase
+            .from('car_rentals')
+            .insert([{ 
+                car_model: carModel, 
+                renter_name: renterName, 
+                rental_date: rentalDate,
+                status: 'Confirmed'
+            }]);
+
+        if (error) {
+            alert('เกิดข้อผิดพลาดในการบันทึก');
+            console.error(error);
+        } else {
+            // ล้างฟอร์มและดึงข้อมูลใหม่
+            document.getElementById('carModel').value = '';
+            document.getElementById('renterName').value = '';
+            document.getElementById('rentalDate').value = '';
+            fetchRentals();
+        }
+    }
+
+    // เรียกดึงข้อมูลทันทีที่โหลดหน้าเว็บ
+    fetchRentals();
+</script>
+
+</body>
+</html>
