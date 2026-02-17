@@ -3,130 +3,81 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบจัดการเช่ารถ - Car Rental</title>
+    <title>ระบบจัดการเช่ารถ</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: 'Chakra Petch', sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; }
-        .container { max-width: 900px; margin: auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
-        h2 { color: #1a73e8; text-align: center; margin-bottom: 30px; }
-        .form-group { display: flex; gap: 10px; margin-bottom: 25px; flex-wrap: wrap; background: #f8f9fa; padding: 20px; border-radius: 10px; }
-        input, button { padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; }
-        input { flex: 1; min-width: 150px; }
-        button { background-color: #28a745; color: white; cursor: pointer; border: none; font-weight: bold; min-width: 120px; }
-        button:hover { background-color: #218838; transform: translateY(-1px); }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; overflow: hidden; border-radius: 8px; }
-        th, td { border-bottom: 1px solid #eee; padding: 15px; text-align: left; }
-        th { background-color: #1a73e8; color: white; font-weight: 500; }
-        tr:hover { background-color: #fcfcfc; }
-        .status-tag { padding: 5px 10px; border-radius: 20px; font-size: 12px; background: #e8f0fe; color: #1a73e8; font-weight: bold; }
+        body { font-family: sans-serif; padding: 20px; background: #f4f4f4; }
+        .container { max-width: 700px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .input-box { margin-bottom: 20px; display: flex; gap: 5px; flex-wrap: wrap; }
+        input, button { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        button { background: #007bff; color: white; border: none; cursor: pointer; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        th { background: #007bff; color: white; }
     </style>
-    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
 <div class="container">
-    <h2>🚗 ระบบจัดการตารางเช่ารถ</h2>
-    
-    <div class="form-group">
-        <input type="text" id="carModel" placeholder="รุ่นรถ (เช่น Honda Civic)">
-        <input type="text" id="renterName" placeholder="ชื่อผู้เช่า">
-        <input type="date" id="rentalDate">
-        <button id="btnSubmit">บันทึกการจอง</button>
+    <h2>🚗 ตารางเช่ารถ</h2>
+    <div class="input-box">
+        <input type="text" id="car" placeholder="รุ่นรถ">
+        <input type="text" id="name" placeholder="ชื่อผู้เช่า">
+        <input type="date" id="date">
+        <button id="saveBtn">บันทึก</button>
     </div>
-
-    <table>
+    <table id="myTable">
         <thead>
-            <tr>
-                <th>รุ่นรถ</th>
-                <th>ชื่อผู้เช่า</th>
-                <th>วันที่เช่า</th>
-                <th>สถานะ</th>
-            </tr>
+            <tr><th>รุ่นรถ</th><th>ชื่อผู้เช่า</th><th>วันที่</th></tr>
         </thead>
-        <tbody id="rentalTableBody">
-            <tr><td colspan="4" style="text-align:center;">กำลังโหลดข้อมูล...</td></tr>
-        </tbody>
+        <tbody></tbody>
     </table>
 </div>
 
 <script>
-    // --- ตั้งค่า SUPABASE ---
-    const SUPABASE_URL = 'https://jgwcyesxajinnpwbtkep.supabase.co'; 
-    const SUPABASE_KEY = 'sb_publishable_SQrXsMRE5mXvcWOFhTZzMw_uTQjMish';
-    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    // 1. ใส่ค่าของคุณตรงนี้
+    const S_URL = 'https://jgwcyesxajinnpwbtkep.supabase.co'; 
+    const S_KEY = 'sb_publishable_SQrXsMRE5mXvcWOFhTZzMw_uTQjMish';
+    
+    // เปลี่ยนชื่อตัวแปรเป็น mySupabase เพื่อไม่ให้ซ้ำกับคำสั่งระบบ
+    const mySupabase = supabase.createClient(S_URL, S_KEY);
 
-    // --- ฟังก์ชันดึงข้อมูล ---
-    async function fetchRentals() {
-        const { data, error } = await supabaseClient
-            .from('car_rentals')
-            .select('*')
-            .order('rental_date', { ascending: true });
-
-        if (error) {
-            console.error('Error:', error);
-            return;
-        }
-
-        const tableBody = document.getElementById('rentalTableBody');
-        tableBody.innerHTML = ''; 
-
-        if (data.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center;">ไม่พบข้อมูลการจอง</td></tr>';
-            return;
-        }
-
-        data.forEach(item => {
-            const row = `
-                <tr>
-                    <td><strong>${item.car_model}</strong></td>
-                    <td>${item.renter_name}</td>
-                    <td>${new Date(item.rental_date).toLocaleDateString('th-TH')}</td>
-                    <td><span class="status-tag">${item.status || 'รอดำเนินการ'}</span></td>
-                </tr>
-            `;
-            tableBody.innerHTML += row;
+    // ฟังก์ชันโหลดข้อมูล
+    async function loadData() {
+        const { data, error } = await mySupabase.from('car_rentals').select('*');
+        if (error) return console.error(error);
+        
+        const tbody = document.querySelector('#myTable tbody');
+        tbody.innerHTML = '';
+        data.forEach(row => {
+            tbody.innerHTML += `<tr><td>${row.car_model}</td><td>${row.renter_name}</td><td>${row.rental_date}</td></tr>`;
         });
     }
 
-    // --- ฟังก์ชันเพิ่มข้อมูล ---
-    async function addRental() {
-        const carModel = document.getElementById('carModel').value;
-        const renterName = document.getElementById('renterName').value;
-        const rentalDate = document.getElementById('rentalDate').value;
+    // ฟังก์ชันบันทึกข้อมูล
+    async function saveData() {
+        const car = document.getElementById('car').value;
+        const name = document.getElementById('name').value;
+        const date = document.getElementById('date').value;
 
-        if (!carModel || !renterName || !rentalDate) {
-            alert('กรุณากรอกข้อมูลให้ครบทุกช่องครับ');
-            return;
-        }
+        if(!car || !name || !date) return alert('กรอกข้อมูลไม่ครบ');
 
-        const { error } = await supabaseClient
-            .from('car_rentals')
-            .insert([{ 
-                car_model: carModel, 
-                renter_name: renterName, 
-                rental_date: rentalDate,
-                status: 'ยืนยันแล้ว'
-            }]);
+        const { error } = await mySupabase.from('car_rentals').insert([
+            { car_model: car, renter_name: name, rental_date: date }
+        ]);
 
         if (error) {
-            alert('บันทึกไม่สำเร็จ: ' + error.message);
+            alert('บันทึกไม่ได้: ' + error.message);
         } else {
-            // ล้างค่าในฟอร์ม
-            document.getElementById('carModel').value = '';
-            document.getElementById('renterName').value = '';
-            document.getElementById('rentalDate').value = '';
-            fetchRentals(); // อัปเดตตาราง
+            document.getElementById('car').value = '';
+            document.getElementById('name').value = '';
+            loadData();
         }
     }
 
-    // --- ตรวจสอบว่าโหลดหน้าเว็บเสร็จแล้วค่อยทำงาน ---
-    document.addEventListener('DOMContentLoaded', () => {
-        // ผูกฟังก์ชันกับปุ่มกด (ป้องกัน Error: addRental is not defined)
-        document.getElementById('btnSubmit').addEventListener('click', addRental);
-        
-        // ดึงข้อมูลครั้งแรก
-        fetchRentals();
-    });
+    // สั่งให้ทำงานเมื่อหน้าจอโหลดเสร็จ
+    document.getElementById('saveBtn').addEventListener('click', saveData);
+    loadData();
 </script>
 
 </body>
